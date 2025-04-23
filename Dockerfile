@@ -37,7 +37,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 COPY . /var/www/html
 
 # Mark the directory as safe
-RUN git config --global --add safe.directory /var/www/html
+#RUN git config --global --add safe.directory /var/www/html
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
