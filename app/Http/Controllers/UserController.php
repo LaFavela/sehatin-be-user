@@ -56,7 +56,6 @@ class UserController
         try {
             $validated = $request->validated();
             $user = User::create($validated);
-            ProcessUserJob::dispatch($user->id)->onQueue('user-created');
         } catch (\Exception $e) {
             return (new MessageResource(null, false, 'Failed to create user', $e->getMessage()))->response()->setStatusCode(500);
         }
@@ -96,8 +95,8 @@ class UserController
             if (!$user) {
                 return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
             }
-            $user->delete();
             ProcessUserJob::dispatch($user->id)->onQueue('user-deleted');
+            $user->delete();
         } catch (\Exception $e) {
             return (new MessageResource(null, false, 'Failed to delete user', $e->getMessage()))->response()->setStatusCode(500);
         }
