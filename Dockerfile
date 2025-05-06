@@ -56,7 +56,7 @@ RUN php artisan octane:install --server=swoole
 
 # Octane setup (if not done yet)
 RUN php artisan config:clear \
-    && php artisan config:cache \
+#    && php artisan config:cache \
     && php artisan route:cache
 
 # Expose Octane port
