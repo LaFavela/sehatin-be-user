@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use app\Http\Requests\UserGetRequest;
 use App\Http\Requests\UserRequest;
 use App\Http\Resources\MessageResource;
 use App\Http\Resources\UserResource;
@@ -15,10 +16,40 @@ class UserController
     /**
      * Display a listing of the resource.
      */
-    public function index(): JsonResponse
+    public function index(UserGetRequest $request): JsonResponse
     {
         try {
-            $users = User::all();
+            $validatedData = $request->validated();
+
+            $role = $request->header('X-User-Role');
+            $userId = $request->header('X-User-ID');
+
+            if ($role != 'admin') {
+                $users = User::where('id', $userId)->get();
+                return (new MessageResource(UserResource::collection($users), true, 'User data found'))->response();
+            }
+
+            $query = User::query();
+
+            if (isset($validatedData['id'])) {
+                $query->where('id', 'like', '%' . $validatedData['id'] . '%');
+            }
+
+            if (isset($validatedData['email'])) {
+                $query->where('email', 'like', '%' . $validatedData['email'] . '%');
+            }
+
+            $sortBy = $validatedData['sort_by'] ?? 'created_at';
+            $sortDirection = $validatedData['sort_direction'] ?? 'desc';
+
+            $query->orderBy($sortBy, $sortDirection);
+
+            if (isset($validatedData['per_page'])) {
+                $users = $query->paginate($validatedData['per_page']);
+                $users->appends($validatedData);
+            } else {
+                $users = $query->get();
+            }
             if ($users->isEmpty()) {
                 return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
             }
@@ -34,7 +65,18 @@ class UserController
     public function show($id): JsonResponse
     {
         try {
-            $user = User::find($id);
+
+            $role = request()->header('X-User-Role');
+            $userId = request()->header('X-User-ID');
+
+            error_log($userId);
+
+            if ($role == 'admin') {
+                $user = User::find($id);
+            } else {
+                $user = User::find($userId);
+            }
+
             if (!$user) {
                 return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
             }
@@ -55,6 +97,7 @@ class UserController
 
         try {
             $validated = $request->validated();
+
             $user = User::create($validated);
         } catch (\Exception $e) {
             return (new MessageResource(null, false, 'Failed to create user', $e->getMessage()))->response()->setStatusCode(500);
@@ -73,6 +116,13 @@ class UserController
 
 
         try {
+            $role = $request->header('X-User-Role');
+            $userId = $request->header('X-User-ID');
+
+            if ($role != 'admin' && $userId != $id) {
+                return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
+            }
+
             $user = User::find($id);
             if (!$user) {
                 return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
@@ -91,6 +141,13 @@ class UserController
     public function destroy($id): JsonResponse
     {
         try {
+            $role = request()->header('X-User-Role');
+            $userId = request()->header('X-User-ID');
+
+            if ($role != 'admin' && $userId != $id) {
+                return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
+            }
+
             $user = User::find($id);
             if (!$user) {
                 return (new MessageResource(null, false, 'Data not found'))->response()->setStatusCode(404);
